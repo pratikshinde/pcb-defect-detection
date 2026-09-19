@@ -1,0 +1,86 @@
+// Generated into src/ rather than node_modules: on Windows a running dev server holds the query-engine
+// DLL open, which makes `prisma generate` into node_modules fail with EPERM. `npm install` regenerates it.
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+// SQLite for local dev (Prisma 5 has no Json type on SQLite, so structured fields are JSON
+// strings - always go through src/db.ts helpers, never write raw arrays into these columns).
+// Plan §1.1 specifies Postgres; switching is a provider change + `Json` column types.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Board {
+  id          Int      @id @default(autoincrement())
+  name        String
+  customerRef String?
+  revision    String?
+  createdAt   DateTime @default(now())
+
+  goldenReferences GoldenReference[]
+  inspections      Inspection[]
+}
+
+model GoldenReference {
+  id            Int      @id @default(autoincrement())
+  boardId       Int
+  source        String   // 'photo' | 'gerber'
+  side          String   // 'top' | 'bottom'
+  mirrored      Boolean
+  imagePath     String?
+  maskPath      String   // binary copper raster, encoded per copperValue
+  drillMaskPath String?  // binary drill raster, same dimensions as maskPath (nullable: photo path has none)
+  copperValue   Int      // 0 | 1 - the pixel value that means "copper" in maskPath (255 when 1, 0 when 0)
+  pxPerMm       Float
+  widthPx       Int
+  heightPx      Int
+  fiducials     String   // JSON [{id, mm:{x,y}, px:{x,y}, diameterMm}]
+  placements    String?  // JSON [{designId, mm:{x,y,w,h}, px:{x,y,w,h}}] - px is in THIS side's raster
+  registeredBy  String?
+  registeredAt  DateTime @default(now())
+
+  board       Board        @relation(fields: [boardId], references: [id])
+  inspections Inspection[]
+
+  @@index([boardId, side, registeredAt])
+}
+
+model Inspection {
+  id                   Int      @id @default(autoincrement())
+  boardId              Int
+  goldenReferenceId    Int
+  placementIndex       Int?
+  capturePath          String
+  maskPath             String   // the capture's binarised copper mask, in the aligned working frame
+  alignedPath          String?  // aligned capture with defect boxes drawn (preview-sized JPEG)
+  verdict              String   // 'pass' | 'fail' | 'needs_review'
+  effectivePxPerMm     Float    // MEASURED from the capture, not copied from the reference
+  smallestDetectableMm Float
+  defectCount          Int
+  alignmentScore       Float?   // ECC correlation of capture vs reference after alignment
+  warnings             String?  // JSON string[]
+  createdAt            DateTime @default(now())
+  deviceId             String?
+  operatorId           String?
+
+  board           Board           @relation(fields: [boardId], references: [id])
+  goldenReference GoldenReference @relation(fields: [goldenReferenceId], references: [id])
+  defects         Defect[]
+
+  @@index([boardId, createdAt])
+}
+
+model Defect {
+  id           Int    @id @default(autoincrement())
+  inspectionId Int
+  bboxPx       String // JSON {x,y,w,h} in the reference raster's pixel frame
+  bboxMm       String // JSON {x,y,w,h} in mm from the top-left of the inspected region, y down
+  kind         String // 'open' | 'short' | 'unclassified'
+  areaPx       Int    // blob area in the aligned working frame
+  confidence   Float?
+
+  inspection Inspection @relation(fields: [inspectionId], references: [id])
+}

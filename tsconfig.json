@@ -1,0 +1,20 @@
+{
+  // Type-check only (`npm run typecheck`). Runtime is tsx, which strips types without checking,
+  // so this is the only thing standing between a Prisma/API type mismatch and a runtime 400.
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2023"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "strict": true
+  },
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "scripts/**/*.mts"],
+  "exclude": ["node_modules", "prisma.config.ts"]
+}

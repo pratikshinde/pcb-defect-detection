@@ -1,0 +1,43 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "prisma generate",
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "seed": "tsx scripts/seedGoldenRef.ts",
+    "verify": "tsx scripts/verify-pipeline.mts",
+    "test": "npm run typecheck && npm run verify",
+    "db:push": "prisma db push",
+    "start:prod": "pm2 start ecosystem.config.js --env production"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@techstark/opencv-js": "^5.0.0-release.1",
+    "adm-zip": "^0.5.18",
+    "express": "^5.2.1",
+    "gerber-to-svg": "^4.2.8",
+    "multer": "^2.4.0",
+    "pm2": "^7.0.4",
+    "sharp": "^0.35.4",
+    "tsx": "^4.23.13",
+    "whats-that-gerber": "^4.2.7",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.6.2",
+    "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
