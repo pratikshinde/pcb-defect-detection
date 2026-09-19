@@ -4,3 +4,9 @@ uploads/
 src/generated/
 *.db-journal
 .scratch/
+.agents/
+.claude/
+.cursor/
+.devin/
+prisma/dev.db
+*.sqlite
