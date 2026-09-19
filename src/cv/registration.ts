@@ -3,7 +3,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { cvConfig } from '../config';
 import { PipelineError } from '../errors';
-import { detectOutlineQuad, homographyFromQuads, polyArea, rotateQuad, warpRgb, type Pt, type Quad } from './align';
+import { detectOutlineQuad, homographyFromQuads, orderClockwise, polyArea, rotateQuad, warpRgb, type Pt, type Quad } from './align';
 import { binarizeCopper } from './binarize';
 import { decodeRgb, writePng } from './image';
 import { bytesOf, matFromRaw, scoped, withCv } from './opencv';
@@ -16,7 +16,7 @@ export interface RegistrationInput {
   heightMm: number;
   /** Cap on the stored resolution; never exceeds what the photo actually contains. */
   pxPerMm?: number | undefined;
-  /** Operator-tapped corners (fractions 0-1 of the oriented photo), TL,TR,BR,BL as the operator sees them. */
+  /** Operator-tapped corners (fractions 0-1 of the oriented photo): the board's four corners in any order. */
   corners?: Quad | undefined;
   /** Absolute path prefix (no extension) for the artifacts written. */
   outputStem: string;
@@ -60,7 +60,7 @@ export async function registerGoldenReference(input: RegistrationInput): Promise
     let quadSrc: Quad;
     let method: CVRegistrationResult['method'];
     if (input.corners) {
-      quadSrc = input.corners.map(([fx, fy]) => [fx * srcW, fy * srcH] as Pt) as Quad;
+      quadSrc = orderClockwise(input.corners.map(([fx, fy]) => [fx * srcW, fy * srcH] as Pt));
       method = 'manual-corners';
     } else {
       const q = scoped((s) => detectOutlineQuad(cv, s, matFromRaw(cv, s, preview.data, preview.width, preview.height, 3)));
@@ -86,7 +86,7 @@ export async function registerGoldenReference(input: RegistrationInput): Promise
 
     // ---- 3. orientation: the quad's aspect must match the stated size -------------------------
     let k = 0;
-    if (method === 'auto-outline') {
+    {
       const len = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]);
       let bestCost = Infinity;
       for (let i = 0; i < 4; i++) {
@@ -103,7 +103,7 @@ export async function registerGoldenReference(input: RegistrationInput): Promise
             'Check the size, or tap the four corners.',
         );
       }
-      warnings.push('Orientation of an auto-detected outline is arbitrary (which way is "up" cannot be known from a single photo); later inspections resolve it by correlation.');
+      warnings.push('The orientation of a golden photo is arbitrary (which way is "up" cannot be known from a single photo); later inspections resolve it by correlation.');
     }
 
     // ---- 4. rectify + binarise ----------------------------------------------------------------

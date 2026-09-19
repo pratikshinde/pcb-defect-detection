@@ -64,7 +64,7 @@ function parseCorners(raw: unknown): Quad | undefined {
     throw new PipelineError('BAD_REQUEST', 'corners must be JSON: [[x,y],[x,y],[x,y],[x,y]] as fractions of the image');
   }
   const r = CornersSchema.safeParse(value);
-  if (!r.success) throw new PipelineError('BAD_REQUEST', 'corners must be four [x,y] pairs, each in 0..1 (top-left, top-right, bottom-right, bottom-left)');
+  if (!r.success) throw new PipelineError('BAD_REQUEST', 'corners must be four [x,y] pairs, each in 0..1 (fractions of the image): the four corners of the board, in any order');
   const q = r.data;
   let a = 0;
   for (let i = 0; i < 4; i++) a += q[i]![0] * q[(i + 1) % 4]![1] - q[(i + 1) % 4]![0] * q[i]![1];
@@ -265,6 +265,8 @@ router.post('/boards/:id/inspections', uploadImage.single('file'), async (req, r
       );
     }
     target = { x: p.px.x, y: p.px.y, w: p.px.w, h: p.px.h };
+    // Without corners the outline would be auto-detected - and that is the whole PANEL, not the one board named.
+    if (!body.corners) throw new PipelineError('BAD_REQUEST', 'placementIndex requires corners: mark the four corners of the single board being inspected');
   }
 
   const outStem = stem(paths.results, 'inspection');

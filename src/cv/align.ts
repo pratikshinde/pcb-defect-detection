@@ -31,7 +31,10 @@ export interface AlignInput {
   reference: { maskPath: string; copperValue: 0 | 1; pxPerMm: number };
   /** The reference region the capture covers (a placement, or the whole raster), in reference pixels. */
   target: Rect;
-  /** Operator-tapped corners as fractions (0-1) of the oriented capture; TL,TR,BR,BL in reference orientation. */
+  /** Operator-tapped corners as fractions (0-1) of the oriented capture: the board's four corners in ANY order
+   *  (they are sorted clockwise here and the orientation is resolved by correlation, exactly as for an
+   *  auto-detected outline - a phone photo of a portrait board is often stored sideways, so asking the
+   *  operator for "reference orientation" would be unusable). */
   corners?: Quad | undefined;
 }
 
@@ -301,7 +304,7 @@ export async function alignCapture(cv: CV, scope: MatScope, input: AlignInput): 
   let quadSrc: Quad; // in oriented-source pixels
   let method: AlignmentResult['method'];
   if (input.corners) {
-    quadSrc = input.corners.map(([fx, fy]) => [fx * srcW, fy * srcH] as Pt) as Quad;
+    quadSrc = orderClockwise(input.corners.map(([fx, fy]) => [fx * srcW, fy * srcH] as Pt));
     method = 'manual-corners';
   } else {
     const q = scoped((s) => detectOutlineQuad(cv, s, matFromRaw(cv, s, preview.data, preview.width, preview.height, 3)));
@@ -353,7 +356,7 @@ export async function alignCapture(cv: CV, scope: MatScope, input: AlignInput): 
   const rActual = capLow.cols / cap.width;
 
   const candidates: { k: number; corr: number }[] = [];
-  const ks = method === 'manual-corners' ? [0] : [0, 1, 2, 3];
+  const ks = [0, 1, 2, 3];
   for (const k of ks) {
     const corr = scoped((tmp) => {
       try {
